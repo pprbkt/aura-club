@@ -1,0 +1,18 @@
+export const doodleAvatars = [
+    'https://avatar.iran.liara.run/public/boy?username=doodle1',
+    'https://avatar.iran.liara.run/public/girl?username=doodle2',
+    'https://avatar.iran.liara.run/public/boy?username=doodle3',
+    'https://avatar.iran.liara.run/public/girl?username=doodle4',
+    'https://avatar.iran.liara.run/public/boy?username=doodle5',
+    'https://avatar.iran.liara.run/public/girl?username=doodle6',
+    'https://avatar.iran.liara.run/public/boy?username=doodle7',
+    'https://avatar.iran.liara.run/public/girl?username=doodle8',
+    'https://avatar.iran.liara.run/public/boy?username=doodle9',
+    'https://avatar.iran.liara.run/public/girl?username=doodle10',
+    'https://avatar.iran.liara.run/public/boy?username=doodle11',
+    'https://avatar.iran.liara.run/public/girl?username=doodle12',
+    'https://avatar.iran.liara.run/public/boy?username=doodle13',
+    'https://avatar.iran.liara.run/public/girl?username=doodle14',
+    'https://avatar.iran.liara.run/public/boy?username=doodle15',
+    'https://avatar.iran.liara.run/public/girl?username=doodle16',
+];

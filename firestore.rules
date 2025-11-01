@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if a user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to get user's role from the 'users' collection
+    function getUserRole(email) {
+      return get(/databases/$(database)/documents/users/$(email)).data.role;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserRole(request.auth.token.email) == 'super_admin';
+    }
+
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return isAuthenticated() && (getUserRole(request.auth.token.email) == 'admin' || isSuperAdmin());
+    }
+    
+    // Helper function to check if the user is a member or admin
+    function isMemberOrAdmin() {
+      return isAuthenticated() && (getUserRole(request.auth.token.email) == 'member' || isAdmin());
+    }
+
+    // Rules for the 'users' collection
+    match /users/{email} {
+      // Admins can read/write any user document
+      // Users can create their own document and read/update their own data
+      allow read: if isAdmin() || (isAuthenticated() && request.auth.token.email == email);
+      allow create: if isAuthenticated();
+      allow update: if isSuperAdmin() || (isAdmin() && (resource.data.role == 'member' || resource.data.role == 'user')) || (isAuthenticated() && request.auth.token.email == email);
+    }
+    
+    // Rules for the 'projects' and 'resources' collections
+    match /{collection}/{docId} {
+      // Allow anyone (even unauthenticated users) to read documents that are 'approved'
+      allow get: if resource.data.status == 'approved';
+      allow list: if resource.data.status == 'approved'; // This is needed for queries
+
+      // Allow authenticated members or admins to read their own pending/rejected items
+      allow read: if isMemberOrAdmin() && (resource.data.authorEmail == request.auth.token.email || isAdmin());
+
+      // Allow members or admins to create new submissions
+      allow create: if isMemberOrAdmin();
+
+      // Only allow admins to update documents (e.g., to approve/reject)
+      allow update: if isAdmin();
+
+      // No one should be able to delete from the client
+      allow delete: if false;
+    }
+  }
+}
