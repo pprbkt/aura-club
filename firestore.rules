@@ -97,17 +97,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Rules for the 'shop_products' collection
-    match /shop_products/{productId} {
-      allow read: if true; // Everyone can view products
-      allow create, update, delete: if isAdmin(); // Only admins can manage products
+    // Rules for the 'products' collection
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
 
-    // Rules for the 'shop_orders' collection
-    match /shop_orders/{orderId} {
-      allow create: if isAuthenticated(); // Users can create orders
-      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow update, delete: if isAdmin(); // Only admins can manage orders
+    // Rules for the 'orders' collection - Permissive for development
+    match /orders/{orderId} {
+      allow create: if isAuthenticated();
+      allow read, write: if isAuthenticated();
+      allow delete: if isAdmin();
     }
 
   }

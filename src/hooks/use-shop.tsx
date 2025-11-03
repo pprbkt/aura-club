@@ -1,13 +1,13 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, query, where, Timestamp } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from './use-auth';
 
 export type StockStatus = 'in-stock' | 'pre-order' | 'low-stock' | 'out-of-stock';
 export type ProductCategory = 'electrical' | 'airframe' | 'mechanical' | 'drone';
-export type SubCategory = string; // Dynamic based on category
+export type SubCategory = string;
 
 export interface Product {
   id: string;
@@ -58,6 +58,7 @@ interface ShopContextType {
   products: Product[];
   orders: Order[];
   loading: boolean;
+  error: string | null;
   addProduct: (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateProduct: (productId: string, product: Partial<Product>) => Promise<void>;
   deleteProduct: (productId: string) => Promise<void>;
@@ -74,85 +75,151 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // Load products
   useEffect(() => {
-    const productsCollection = collection(db, 'shop_products');
-    const unsubscribe = onSnapshot(productsCollection, (snapshot) => {
-      const productsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Product));
-      setProducts(productsData);
-      setLoading(false);
-    });
+    try {
+      const productsCollection = collection(db, 'products');
+      const unsubscribe = onSnapshot(
+        productsCollection,
+        (snapshot) => {
+          const productsData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          } as Product));
+          setProducts(productsData);
+          setLoading(false);
+          setError(null);
+        },
+        (err) => {
+          console.error('Error loading products:', err);
+          setError(err.message);
+          setLoading(false);
+        }
+      );
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load products';
+      setError(errorMsg);
+      setLoading(false);
+    }
   }, []);
 
+  // Load orders (only for admins)
   useEffect(() => {
     if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
       setOrders([]);
       return;
     }
 
-    const ordersCollection = collection(db, 'shop_orders');
-    const unsubscribe = onSnapshot(ordersCollection, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Order));
-      setOrders(ordersData.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
-    });
+    try {
+      const ordersCollection = collection(db, 'shop_orders');
+      const unsubscribe = onSnapshot(
+        ordersCollection,
+        (snapshot) => {
+          const ordersData = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          } as Order));
+          setOrders(ordersData.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis()));
+        },
+        (err) => {
+          console.error('Error loading orders:', err);
+          setError(err.message);
+        }
+      );
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to load orders';
+      setError(errorMsg);
+    }
   }, [user]);
 
   const addProduct = async (product: Omit<Product, 'id' | 'createdAt' | 'updatedAt'>) => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      throw new Error('Only admins can add products');
+    try {
+      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+        throw new Error('Only admins can add products');
+      }
+      
+      await addDoc(collection(db, 'products'), {
+        ...product,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      setError(null);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to add product';
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
-    await addDoc(collection(db, 'shop_products'), {
-      ...product,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
   };
 
   const updateProduct = async (productId: string, productUpdates: Partial<Product>) => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      throw new Error('Only admins can update products');
+    try {
+      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+        throw new Error('Only admins can update products');
+      }
+      const productRef = doc(db, 'products', productId);
+      await updateDoc(productRef, {
+        ...productUpdates,
+        updatedAt: Timestamp.now(),
+      });
+      setError(null);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to update product';
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
-    const productRef = doc(db, 'shop_products', productId);
-    await updateDoc(productRef, {
-      ...productUpdates,
-      updatedAt: Timestamp.now(),
-    });
   };
 
   const deleteProduct = async (productId: string) => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      throw new Error('Only admins can delete products');
+    try {
+      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+        throw new Error('Only admins can delete products');
+      }
+      await deleteDoc(doc(db, 'products', productId));
+      setError(null);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to delete product';
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
-    await deleteDoc(doc(db, 'shop_products', productId));
   };
 
   const createOrder = async (order: Omit<Order, 'id' | 'createdAt' | 'updatedAt'>) => {
-    await addDoc(collection(db, 'shop_orders'), {
-      ...order,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
+    try {
+      await addDoc(collection(db, 'shop_orders'), {
+        ...order,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      setError(null);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to create order';
+      setError(errorMsg);
+      throw new Error(errorMsg);
+    }
   };
 
   const updateOrderStatus = async (orderId: string, status: Order['status']) => {
-    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
-      throw new Error('Only admins can update orders');
+    try {
+      if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+        throw new Error('Only admins can update orders');
+      }
+      const orderRef = doc(db, 'shop_orders', orderId);
+      await updateDoc(orderRef, {
+        status,
+        updatedAt: Timestamp.now(),
+      });
+      setError(null);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Failed to update order';
+      setError(errorMsg);
+      throw new Error(errorMsg);
     }
-    const orderRef = doc(db, 'shop_orders', orderId);
-    await updateDoc(orderRef, {
-      status,
-      updatedAt: Timestamp.now(),
-    });
   };
 
   const getProductsByCategory = (category: ProductCategory) => {
@@ -172,6 +239,7 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     products,
     orders,
     loading,
+    error,
     addProduct,
     updateProduct,
     deleteProduct,

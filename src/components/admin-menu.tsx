@@ -8,7 +8,7 @@ import {
   SidebarGroupLabel,
   SidebarGroupContent,
 } from "@/components/ui/sidebar";
-import { GitPullRequest, Users, UserCog, FolderKanban, Library, Calendar, Newspaper, Trash2, ShoppingCart } from "lucide-react";
+import { GitPullRequest, Users, UserCog, FolderKanban, Library, Calendar, Newspaper, Trash2, ShoppingCart, Package } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 
@@ -142,6 +142,18 @@ export function AdminMenu() {
               <Link href="/dashboard/shop">
                 <ShoppingCart />
                 Shop Management
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              tooltip="Orders Management"
+              isActive={pathname === "/dashboard/orders"}
+            >
+              <Link href="/dashboard/orders">
+                <Package />
+                Orders
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>

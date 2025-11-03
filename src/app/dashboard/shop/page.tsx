@@ -164,7 +164,7 @@ export default function ShopManagementPage() {
                       <td className="py-3 px-2 font-medium">{product.name}</td>
                       <td className="py-3 px-2 text-muted-foreground">{product.brand}</td>
                       <td className="py-3 px-2 text-muted-foreground capitalize">{product.category}</td>
-                      <td className="py-3 px-2">${product.price}</td>
+                      <td className="py-3 px-2">₹{product.price.toLocaleString('en-IN')}</td>
                       <td className="py-3 px-2">{product.stock}</td>
                       <td className="py-3 px-2">
                         <span className={`text-xs px-2 py-1 rounded ${

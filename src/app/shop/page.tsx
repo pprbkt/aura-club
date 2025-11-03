@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Search, ShoppingCart, X } from "lucide-react";
 import Image from "next/image";
 import { useShop, ProductCategory } from "@/hooks/use-shop";
 import { useToast } from "@/hooks/use-toast";
+import { useCart } from "@/hooks/use-cart";
 
 const CATEGORIES: { value: ProductCategory; label: string }[] = [
   { value: 'electrical', label: 'Electrical & Power Systems' },
@@ -28,13 +30,13 @@ const STOCK_STATUS = [
 export default function ShopPage() {
   const { products, loading } = useShop();
   const { toast } = useToast();
+  const { cart, addToCart } = useCart();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
-  const [priceRange, setPriceRange] = useState([0, 1000]);
+  const [priceRange, setPriceRange] = useState([0, 100000]);
   const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [selectedStatus, setSelectedStatus] = useState<string[]>([]);
-  const [cart, setCart] = useState<{ productId: string; quantity: number }[]>([]);
 
   // Get unique brands
   const brands = useMemo(() => {
@@ -55,31 +57,29 @@ export default function ShopPage() {
     });
   }, [products, searchQuery, selectedCategory, priceRange, selectedBrands, selectedStatus]);
 
-  const handleAddToCart = (productId: string) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.productId === productId);
-      if (existing) {
-        return prev.map(item =>
-          item.productId === productId
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-      return [...prev, { productId, quantity: 1 }];
+  const handleAddToCart = (product: any) => {
+    addToCart({
+      productId: product.id,
+      quantity: 1,
+      name: product.name,
+      price: product.price,
+      image: product.image,
     });
     toast({
       title: "Added to Cart",
-      description: "Product added successfully",
+      description: `${product.name} added successfully`,
     });
   };
 
   const handleClearFilters = () => {
     setSearchQuery('');
     setSelectedCategory('all');
-    setPriceRange([0, 1000]);
+    setPriceRange([0, 100000]);
     setSelectedBrands([]);
     setSelectedStatus([]);
   };
+
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="flex gap-6 container mx-auto px-4 py-8">
@@ -137,13 +137,13 @@ export default function ShopPage() {
 
             {/* Price Range */}
             <div>
-              <h3 className="font-semibold mb-3">Price Range</h3>
+              <h3 className="font-semibold mb-3">Price Range (₹)</h3>
               <Slider
                 value={priceRange}
                 onValueChange={setPriceRange}
                 min={0}
-                max={1000}
-                step={10}
+                max={100000}
+                step={500}
                 className="mb-3"
               />
               <div className="flex gap-2 text-sm">
@@ -213,20 +213,30 @@ export default function ShopPage() {
 
       {/* Products */}
       <main className="flex-1">
-        <div className="mb-6">
-          <h1 className="font-headline text-4xl font-bold mb-2">Club Shop</h1>
-          <p className="text-muted-foreground">
-            Quality components for RC enthusiasts and model builders
-          </p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="font-headline text-4xl font-bold mb-2">Club Shop</h1>
+            <p className="text-muted-foreground">
+              Quality components for RC enthusiasts and model builders
+            </p>
+          </div>
+          <Button asChild size="lg" className="gap-2">
+            <Link href="/shop/cart">
+              <ShoppingCart className="h-5 w-5" />
+              Cart
+              {cartItemCount > 0 && (
+                <span className="bg-primary-foreground text-primary px-2.5 py-0.5 rounded-full text-sm font-bold">
+                  {cartItemCount}
+                </span>
+              )}
+            </Link>
+          </Button>
         </div>
 
         <div className="mb-6 flex items-center justify-between">
           <p className="text-sm text-muted-foreground">
             Showing {filteredProducts.length} of {products.length} products
           </p>
-          <div className="text-sm text-muted-foreground">
-            Cart: {cart.reduce((sum, item) => sum + item.quantity, 0)} items
-          </div>
         </div>
 
         {loading ? (
@@ -265,13 +275,13 @@ export default function ShopPage() {
                 <CardContent className="space-y-3">
                   <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold">${product.price}</span>
+                    <span className="text-2xl font-bold">₹{product.price.toLocaleString('en-IN')}</span>
                     {product.salePrice && (
-                      <span className="text-sm line-through text-muted-foreground">${product.salePrice}</span>
+                      <span className="text-sm line-through text-muted-foreground">₹{product.salePrice.toLocaleString('en-IN')}</span>
                     )}
                   </div>
                   <Button
-                    onClick={() => handleAddToCart(product.id)}
+                    onClick={() => handleAddToCart(product)}
                     disabled={product.status === 'out-of-stock'}
                     className="w-full"
                   >

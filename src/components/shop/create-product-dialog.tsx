@@ -218,7 +218,7 @@ export function CreateProductDialog({ children }: CreateProductDialogProps) {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium">Price ($) *</label>
+              <label className="text-sm font-medium">Price (₹) *</label>
               <Input {...register("price")} placeholder="0.00" type="number" step="0.01" />
               {errors.price && <p className="text-xs text-red-500 mt-1">{errors.price.message}</p>}
             </div>
