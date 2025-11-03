@@ -151,6 +151,7 @@ export interface Alumnus {
 
 export interface AlumniOpportunity extends OpportunityBase {
     category: "alumni";
+    link: string;  // Added link field
 }
 
 // This is our App's user type, which merges Firebase's User with our custom fields.

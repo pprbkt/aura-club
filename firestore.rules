@@ -35,28 +35,68 @@ service cloud.firestore {
       allow update: if isSuperAdmin() || (isAdmin() && (resource.data.role == 'member' || resource.data.role == 'user')) || (isAuthenticated() && request.auth.token.email == email);
     }
     
+    // Rules for the 'alumni' collection
     match /alumni/{alumnusId} {
       allow read: if true;
       allow create, update, delete: if isAdmin();
     }
 
-    // Rules for the 'projects' and 'resources' collections
-    match /{collection}/{docId} {
-      // Allow anyone (even unauthenticated users) to read documents that are 'approved'
+    // Rules for the 'alumniOpportunities' collection
+    match /alumniOpportunities/{opportunityId} {
+      allow read: if true; // Everyone can read alumni opportunities
+      allow create, update, delete: if isAdmin(); // Only admins can create, update, or delete
+    }
+
+    // Rules for the 'leadership' collection
+    match /leadership/{leaderId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Rules for the 'announcements' collection
+    match /announcements/{announcementId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // Rules for the 'projects' collection
+    match /projects/{docId} {
       allow get: if resource.data.status == 'approved';
-      allow list: if resource.data.status == 'approved'; // This is needed for queries
-
-      // Allow authenticated members or admins to read their own pending/rejected items
+      allow list: if resource.data.status == 'approved';
       allow read: if isMemberOrAdmin() && (resource.data.authorEmail == request.auth.token.email || isAdmin());
-
-      // Allow members or admins to create new submissions
       allow create: if isMemberOrAdmin();
-
-      // Only allow admins to update documents (e.g., to approve/reject)
       allow update: if isAdmin();
+      allow delete: if isAdmin(); // Admins can delete projects
+    }
 
-      // No one should be able to delete from the client
-      allow delete: if false;
+    // Rules for the 'resources' collection
+    match /resources/{docId} {
+      allow get: if resource.data.status == 'approved';
+      allow list: if resource.data.status == 'approved';
+      allow read: if isMemberOrAdmin() && (resource.data.authorEmail == request.auth.token.email || isAdmin());
+      allow create: if isMemberOrAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin(); // Admins can delete resources
+    }
+
+    // Rules for the 'opportunities' collection
+    match /opportunities/{docId} {
+      allow get: if resource.data.status == 'approved';
+      allow list: if resource.data.status == 'approved';
+      allow read: if isMemberOrAdmin() && (resource.data.authorEmail == request.auth.token.email || isAdmin());
+      allow create: if isMemberOrAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin(); // Admins can delete opportunities
+    }
+
+    // Rules for the 'blogPosts' collection
+    match /blogPosts/{docId} {
+      allow get: if resource.data.status == 'approved';
+      allow list: if resource.data.status == 'approved';
+      allow read: if isMemberOrAdmin() && (resource.data.authorEmail == request.auth.token.email || isAdmin());
+      allow create: if isMemberOrAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin(); // Admins can delete blog posts
     }
   }
 }
