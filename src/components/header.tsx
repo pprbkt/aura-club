@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu, User, LogOut } from "lucide-react";
+import { Menu, User, LogOut, ShoppingBag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { useAuth } from "@/hooks/use-auth";
@@ -16,6 +16,7 @@ const navLinks = [
   { href: "/resources", label: "Resources" },
   { href: "/opportunities", label: "Opportunities" },
   { href: "/blog", label: "Blog" },
+  { href: "/shop", label: "Shop" },
   { href: "/about", label: "About" },
   { href: "/alumni", label: "Alumni", memberOnly: true },
 ];
