@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, ReactNode } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
@@ -23,15 +23,17 @@ import {
 } from "@/components/ui/select";
 import { useShop } from "@/hooks/use-shop";
 import { useToast } from "@/hooks/use-toast";
+import { Upload, X } from "lucide-react";
+import Image from "next/image";
 
 const productSchema = z.object({
   name: z.string().min(1, "Product name required"),
   brand: z.string().min(1, "Brand required"),
-  category: z.enum(["electrical", "airframe", "mechanical", "drone"]),
+  category: z.string().min(1, "Category required"),
   subCategory: z.string().min(1, "Sub-category required"),
   price: z.coerce.number().min(0, "Price must be positive"),
   stock: z.coerce.number().min(0, "Stock must be non-negative"),
-  status: z.enum(["in-stock", "pre-order", "low-stock", "out-of-stock"]),
+  status: z.string().min(1, "Status required"),
   description: z.string().min(10, "Description must be at least 10 characters"),
 });
 
@@ -43,10 +45,16 @@ interface CreateProductDialogProps {
 
 export function CreateProductDialog({ children }: CreateProductDialogProps) {
   const [open, setOpen] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string>("");
   const { addProduct } = useShop();
   const { toast } = useToast();
-  const { register, handleSubmit, watch, formState: { errors }, reset } = useForm<ProductFormData>({
+  const { register, handleSubmit, watch, control, formState: { errors }, reset } = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
+    defaultValues: {
+      category: "",
+      subCategory: "",
+      status: "",
+    },
   });
 
   const selectedCategory = watch("category");
@@ -56,6 +64,21 @@ export function CreateProductDialog({ children }: CreateProductDialogProps) {
     airframe: ["Foam & Sheet Materials", "Wood & Composites", "Adhesives & Tools"],
     mechanical: ["Linkages", "Control Surfaces", "Fasteners & Hardware"],
     drone: ["Frames & Hardware", "Flight Controllers", "FPV Gear", "Propellers"],
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removeImage = () => {
+    setImagePreview("");
   };
 
   const onSubmit = async (data: ProductFormData) => {
@@ -71,14 +94,15 @@ export function CreateProductDialog({ children }: CreateProductDialogProps) {
         description: data.description,
         specifications: {},
         tags: [],
-        image: "",
-        images: [],
+        image: imagePreview,
+        images: imagePreview ? [imagePreview] : [],
       });
       toast({
         title: "Success",
         description: `${data.name} has been added to the shop!`,
       });
       reset();
+      setImagePreview("");
       setOpen(false);
     } catch (error) {
       toast({
@@ -92,12 +116,49 @@ export function CreateProductDialog({ children }: CreateProductDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add New Product</DialogTitle>
           <DialogDescription>Fill in the product details to add it to the shop</DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          {/* Image Upload */}
+          <div>
+            <label className="text-sm font-medium">Product Image</label>
+            <div className="mt-2">
+              {imagePreview ? (
+                <div className="relative w-full h-40 bg-muted rounded-lg overflow-hidden">
+                  <Image
+                    src={imagePreview}
+                    alt="Preview"
+                    fill
+                    className="object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={removeImage}
+                    className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50">
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="h-8 w-8 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">Click to upload image</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+
           <div>
             <label className="text-sm font-medium">Product Name *</label>
             <Input {...register("name")} placeholder="e.g., Servo SG90" />
@@ -112,33 +173,45 @@ export function CreateProductDialog({ children }: CreateProductDialogProps) {
 
           <div>
             <label className="text-sm font-medium">Category *</label>
-            <Select {...register("category")} defaultValue="">
-              <SelectTrigger>
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="electrical">Electrical & Power</SelectItem>
-                <SelectItem value="airframe">Airframe Materials</SelectItem>
-                <SelectItem value="mechanical">Mechanical & Control</SelectItem>
-                <SelectItem value="drone">Drone Specific</SelectItem>
-              </SelectContent>
-            </Select>
+            <Controller
+              name="category"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="electrical">Electrical & Power</SelectItem>
+                    <SelectItem value="airframe">Airframe Materials</SelectItem>
+                    <SelectItem value="mechanical">Mechanical & Control</SelectItem>
+                    <SelectItem value="drone">Drone Specific</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
             {errors.category && <p className="text-xs text-red-500 mt-1">{errors.category.message}</p>}
           </div>
 
           {selectedCategory && (
             <div>
               <label className="text-sm font-medium">Sub-Category *</label>
-              <Select {...register("subCategory")} defaultValue="">
-                <SelectTrigger>
-                  <SelectValue placeholder="Select sub-category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subCategoryMap[selectedCategory].map(sub => (
-                    <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="subCategory"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sub-category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {subCategoryMap[selectedCategory].map(sub => (
+                        <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.subCategory && <p className="text-xs text-red-500 mt-1">{errors.subCategory.message}</p>}
             </div>
           )}
@@ -158,17 +231,23 @@ export function CreateProductDialog({ children }: CreateProductDialogProps) {
 
           <div>
             <label className="text-sm font-medium">Status *</label>
-            <Select {...register("status")} defaultValue="">
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="in-stock">In Stock</SelectItem>
-                <SelectItem value="low-stock">Low Stock</SelectItem>
-                <SelectItem value="pre-order">Pre-Order</SelectItem>
-                <SelectItem value="out-of-stock">Out of Stock</SelectItem>
-              </SelectContent>
-            </Select>
+            <Controller
+              name="status"
+              control={control}
+              render={({ field }) => (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="in-stock">In Stock</SelectItem>
+                    <SelectItem value="low-stock">Low Stock</SelectItem>
+                    <SelectItem value="pre-order">Pre-Order</SelectItem>
+                    <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            />
             {errors.status && <p className="text-xs text-red-500 mt-1">{errors.status.message}</p>}
           </div>
 
@@ -177,7 +256,7 @@ export function CreateProductDialog({ children }: CreateProductDialogProps) {
             <textarea 
               {...register("description")} 
               placeholder="Product description..."
-              className="w-full px-3 py-2 border rounded-md text-sm"
+              className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
               rows={3}
             />
             {errors.description && <p className="text-xs text-red-500 mt-1">{errors.description.message}</p>}
