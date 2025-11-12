@@ -2,14 +2,24 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if a user is authenticated
+    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
 
-    // Get user role from custom claims (NOT from Firestore to avoid circular dependency)
+    // Check if the user document exists in Firestore
+    function userExists(email) {
+      return exists(/databases/$(database)/documents/users/$(email));
+    }
+
+    // Get user data from Firestore (only call if userExists)
+    function getUserData(email) {
+      return get(/databases/$(database)/documents/users/$(email)).data;
+    }
+
+    // Get current user's role
     function getUserRole() {
-      return request.auth.token.role;
+      return userExists(request.auth.token.email) ? getUserData(request.auth.token.email).role : 'user';
     }
 
     // Check if user is super admin
@@ -19,19 +29,25 @@ service cloud.firestore {
 
     // Check if user is admin or super admin
     function isAdmin() {
-      return isAuthenticated() && (getUserRole() == 'admin' || getUserRole() == 'super_admin');
+      return isAuthenticated() && getUserRole() in ['admin', 'super_admin'];
     }
     
     // Check if user is member or admin
     function isMemberOrAdmin() {
-      return isAuthenticated() && (getUserRole() == 'member' || isAdmin());
+      return isAuthenticated() && getUserRole() in ['member', 'admin', 'super_admin'];
     }
 
-    // Rules for the 'users' collection - FIXED FOR APPROVAL
+    // Rules for the 'users' collection
     match /users/{email} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated(); // Allow all authenticated users to update
+      allow update: if isAuthenticated() && (
+        // Users can update their own document
+        request.auth.token.email == email ||
+        // Admins can update any user (check if requester's doc exists and they're admin)
+        (userExists(request.auth.token.email) && getUserData(request.auth.token.email).role in ['admin', 'super_admin'])
+      );
+      allow delete: if isSuperAdmin();
     }
     
     // Rules for the 'alumni' collection
@@ -62,32 +78,28 @@ service cloud.firestore {
     match /projects/{docId} {
       allow read: if true;
       allow create: if isMemberOrAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     // Rules for the 'resources' collection
     match /resources/{docId} {
       allow read: if true;
       allow create: if isMemberOrAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     // Rules for the 'opportunities' collection
     match /opportunities/{docId} {
       allow read: if true;
       allow create: if isMemberOrAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     // Rules for the 'blogPosts' collection
     match /blogPosts/{docId} {
       allow read: if true;
       allow create: if isMemberOrAdmin();
-      allow update: if isAdmin();
-      allow delete: if isAdmin();
+      allow update, delete: if isAdmin();
     }
 
     // Rules for the 'products' collection
