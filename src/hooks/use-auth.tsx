@@ -188,6 +188,7 @@ interface AuthContextType {
   updateUserProfile: (displayName: string, photoURL?: string | null, photoFile?: File | null) => Promise<void>;
   approveUser: (email: string) => void;
   denyUser: (email: string) => void;
+  deleteUser: (email: string) => Promise<void>;
   updateUserRole: (email: string, role: UserRole) => Promise<void>;
   toggleUploadPermission: (email: string, canUpload: boolean) => void;
   requestMembership: (email: string, reason: string) => Promise<void>;
@@ -551,13 +552,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
   
   const approveUser = async (email: string) => {
-    const userDocRef = doc(db, 'users', email);
-    await updateDoc(userDocRef, { status: 'approved', role: 'member', canUpload: true });
+    try {
+      const userDocRef = doc(db, 'users', email);
+      await updateDoc(userDocRef, { status: 'approved', role: 'member', canUpload: true });
+    } catch (error) {
+      console.error("Error approving user:", error);
+      throw error;
+    }
   };
 
   const denyUser = async (email: string) => {
-    const userDocRef = doc(db, 'users', email);
-    await updateDoc(userDocRef, { status: 'denied' });
+    try {
+      const userDocRef = doc(db, 'users', email);
+      await updateDoc(userDocRef, { status: 'denied' });
+    } catch (error) {
+      console.error("Error denying user:", error);
+      throw error;
+    }
+  };
+
+  const deleteUser = async (email: string) => {
+    if (!user || (user.role !== 'admin' && user.role !== 'super_admin')) {
+      throw new Error("Only admins can delete users.");
+    }
+    
+    if (user.email === email) {
+      throw new Error("You cannot delete your own account.");
+    }
+    
+    try {
+      const userDocRef = doc(db, 'users', email);
+      await deleteDoc(userDocRef);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      throw error;
+    }
   };
   
   const updateUserRole = async (email: string, role: UserRole) => {
@@ -837,6 +866,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     updateUserProfile,
     approveUser,
     denyUser,
+    deleteUser,
     updateUserRole,
     toggleUploadPermission,
     requestMembership,

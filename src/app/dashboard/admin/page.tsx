@@ -22,7 +22,7 @@ import { ResourceReviewDialog } from "@/components/resource-review-dialog";
 import { OpportunityReviewDialog } from "@/components/opportunity-review-dialog";
 import { BlogPostReviewDialog } from "@/components/blog-post-review-dialog";
 import { useSearchParams } from "next/navigation";
-import type { SubmissionStatus, Alumnus } from "@/hooks/use-auth";
+import type { SubmissionStatus, Alumnus, AppDbUser } from "@/hooks/use-auth";
 import { EditLeaderDialog } from "@/components/edit-leader-dialog";
 import { EditAlumnusDialog } from "@/components/edit-alumnus-dialog";
 import { AlumniOpportunityReviewDialog } from "@/components/alumni-opportunity-review-dialog";
@@ -38,11 +38,12 @@ const statusColors: { [key in SubmissionStatus]: "default" | "secondary" | "dest
 };
 
 export default function AdminPage() {
-  const { user: currentUser, users, projects, resources, opportunities, blogPosts, leadership, alumni, alumniOpportunities, approveUser, denyUser, toggleUploadPermission, approveProject, rejectProject, approveResource, rejectResource, approveOpportunity, rejectOpportunity, approveBlogPost, rejectBlogPost, toggleLeaderVisibility, approveAlumniOpportunity, rejectAlumniOpportunity, deleteAlumnus, deleteAlumniOpportunity, updateAlumniOpportunity } = useAuth();
+  const { user: currentUser, users, projects, resources, opportunities, blogPosts, leadership, alumni, alumniOpportunities, approveUser, denyUser, deleteUser, toggleUploadPermission, approveProject, rejectProject, approveResource, rejectResource, approveOpportunity, rejectOpportunity, approveBlogPost, rejectBlogPost, toggleLeaderVisibility, approveAlumniOpportunity, rejectAlumniOpportunity, deleteAlumnus, deleteAlumniOpportunity, updateAlumniOpportunity } = useAuth();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') || 'requests';
   const [alumnusToDelete, setAlumnusToDelete] = useState<Alumnus | null>(null);
+  const [userToDelete, setUserToDelete] = useState<AppDbUser | null>(null);
 
   const handleApproveUser = async (email: string) => {
     try {
@@ -149,6 +150,22 @@ export default function AdminPage() {
     }
   };
 
+  const handleDeleteUser = async (userToDelete: AppDbUser) => {
+    try {
+      await deleteUser(userToDelete.email);
+      toast({ 
+        title: "User Deleted", 
+        description: `${userToDelete.name} has been permanently deleted.` 
+      });
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Deletion Failed",
+        description: error.message || "Failed to delete user. Please try again.",
+      });
+    }
+  };
+
   const joinRequests = users.filter(u => u.status === 'pending');
   const membersAndUsers = users.filter(u => u.status === 'approved' && u.email !== currentUser?.email);
   
@@ -239,6 +256,7 @@ export default function AdminPage() {
                       <TableHead>Name</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead className="text-center">Can Upload</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -257,8 +275,17 @@ export default function AdminPage() {
                             checked={member.canUpload} 
                             onCheckedChange={(checked) => handleToggleUpload(member.email, checked)}
                             aria-label="Toggle Upload Permission" 
-                            disabled={member.role === 'admin'}
+                            disabled={member.role === 'admin' || member.role === 'super_admin'}
                           />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => setUserToDelete(member)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -266,6 +293,18 @@ export default function AdminPage() {
                 </Table>
               </CardContent>
             </Card>
+            {userToDelete && (
+              <DeleteConfirmationDialog
+                open={userToDelete !== null}
+                onConfirm={async () => {
+                  await handleDeleteUser(userToDelete);
+                  setUserToDelete(null);
+                }}
+                onCancel={() => setUserToDelete(null)}
+                title="Are you sure you want to delete this user?"
+                description={`This will permanently delete ${userToDelete.name} (${userToDelete.email}). This action cannot be undone.`}
+              />
+            )}
           </>
         )
       case 'leadership':
