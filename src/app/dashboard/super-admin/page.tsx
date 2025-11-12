@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useAuth, type UserRole } from "@/hooks/use-auth";
@@ -15,7 +14,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { ShieldAlert } from "lucide-react";
 import { UpdateRoleSelect } from "@/components/update-role-select";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 export default function SuperAdminPage() {
   const { user, users, updateUserRole } = useAuth();
@@ -32,8 +31,24 @@ export default function SuperAdminPage() {
     return <div className="flex h-screen items-center justify-center">Access Denied</div>;
   }
 
+  // Sort users by role hierarchy: super_admin → admin → member → user
+  const sortedUsers = useMemo(() => {
+    const roleOrder: { [key in UserRole]: number } = {
+      'super_admin': 1,
+      'admin': 2,
+      'member': 3,
+      'user': 4,
+    };
 
-  const manageableUsers = users.filter(u => u.email !== user.email);
+    return users
+      .filter(u => u.email !== user.email)
+      .sort((a, b) => {
+        const roleComparison = roleOrder[a.role] - roleOrder[b.role];
+        if (roleComparison !== 0) return roleComparison;
+        // If same role, sort alphabetically by name
+        return a.name.localeCompare(b.name);
+      });
+  }, [users, user.email]);
 
   return (
     <div className="space-y-8">
@@ -64,11 +79,11 @@ export default function SuperAdminPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {manageableUsers.map((u) => (
+              {sortedUsers.map((u) => (
                 <TableRow key={u.uid}>
                   <TableCell className="font-medium">{u.name}</TableCell>
                   <TableCell>{u.email}</TableCell>
-                  <TableCell className="capitalize">{u.role}</TableCell>
+                  <TableCell className="capitalize">{u.role.replace('_', ' ')}</TableCell>
                   <TableCell className="text-right">
                     <UpdateRoleSelect userEmail={u.email} currentRole={u.role} />
                   </TableCell>

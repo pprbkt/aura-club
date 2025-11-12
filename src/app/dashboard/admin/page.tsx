@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { DeleteConfirmationDialog } from "@/components/delete-confirmation-dialog";
 import { Check, X, FileText, Calendar, Newspaper, Users, Library, FolderKanban, GitPullRequest, UserCog, PlusCircle, Edit, Trash2 } from "lucide-react";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth, type UserRole } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { ProjectReviewDialog } from "@/components/project-review-dialog";
 import { ResourceReviewDialog } from "@/components/resource-review-dialog";
@@ -151,6 +151,23 @@ export default function AdminPage() {
 
   const joinRequests = users.filter(u => u.status === 'pending');
   const membersAndUsers = users.filter(u => u.status === 'approved' && u.email !== currentUser?.email);
+  
+  // Sort members by role hierarchy
+  const sortedMembers = useMemo(() => {
+    const roleOrder: { [key in UserRole]: number } = {
+      'super_admin': 1,
+      'admin': 2,
+      'member': 3,
+      'user': 4,
+    };
+
+    return membersAndUsers.sort((a, b) => {
+      const roleComparison = roleOrder[a.role] - roleOrder[b.role];
+      if (roleComparison !== 0) return roleComparison;
+      return a.name.localeCompare(b.name);
+    });
+  }, [membersAndUsers]);
+
   const pendingProjects = projects.filter(p => p.status === 'pending');
   const pendingResources = resources.filter(r => r.status === 'pending');
   const pendingOpportunities = opportunities.filter(o => o.status === 'pending');
@@ -213,7 +230,7 @@ export default function AdminPage() {
             <Card>
               <CardHeader>
                 <CardTitle>Current Members</CardTitle>
-                 <CardDescription>Total members: {membersAndUsers.length}</CardDescription>
+                 <CardDescription>Total members: {sortedMembers.length}</CardDescription>
               </CardHeader>
               <CardContent>
                 <Table>
@@ -225,7 +242,7 @@ export default function AdminPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {membersAndUsers.map((member) => (
+                    {sortedMembers.map((member) => (
                       <TableRow key={member.email}>
                         <TableCell>
                           <div className="font-medium">{member.name}</div>
